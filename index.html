@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>ZeroAI</title>
+<script src="https://js.puter.com/v2/"></script>
+
+<style>
+body{
+  background:#020617;
+  color:white;
+  font-family:system-ui;
+  margin:0;
+}
+#app{
+  max-width:600px;
+  margin:auto;
+  padding:15px;
+}
+#chat{
+  height:65vh;
+  overflow-y:auto;
+  border:1px solid #1e293b;
+  padding:10px;
+  border-radius:12px;
+}
+.msg{
+  margin-bottom:10px;
+  padding:8px 12px;
+  border-radius:10px;
+  white-space:pre-wrap;
+}
+.user{
+  background:#2563eb;
+  text-align:right;
+}
+.ai{
+  background:#020617;
+  border:1px solid #334155;
+}
+img{
+  max-width:100%;
+  border-radius:10px;
+  margin-top:5px;
+}
+#input{
+  display:flex;
+  gap:5px;
+  margin-top:10px;
+}
+textarea{
+  flex:1;
+  resize:none;
+  padding:10px;
+  border-radius:10px;
+  border:none;
+}
+button{
+  padding:10px 15px;
+  border:none;
+  border-radius:10px;
+  background:#22c55e;
+  font-weight:bold;
+}
+.logo{
+  width:180px;
+  display:block;
+  margin:0 auto 10px auto;
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- LOGO ZeroAI -->
+  <img src="https://i.ibb.co.com/rKYv9K44/20251221-165128.jpg" alt="ZeroAI Logo" class="logo">
+
+  <div id="chat"></div>
+
+  <div id="input">
+    <textarea id="text" placeholder="Tanya sesuatu..." rows="2"></textarea>
+    <input type="file" id="img" accept="image/*">
+    <button onclick="send()">Kirim</button>
+  </div>
+</div>
+
+<script>
+const chat = document.getElementById("chat");
+let history = JSON.parse(localStorage.getItem("zeroai_history")) || [];
+
+function render(){
+  chat.innerHTML="";
+  history.forEach(m=>{
+    const div=document.createElement("div");
+    div.className="msg "+m.role;
+
+    if(m.text) div.textContent=m.text;
+    if(m.img){
+      const im=document.createElement("img");
+      im.src=m.img;
+      div.appendChild(im);
+    }
+
+    chat.appendChild(div);
+  });
+  chat.scrollTop=chat.scrollHeight;
+}
+render();
+
+function toBase64(file){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=()=>res(r.result);
+    r.onerror=rej;
+    r.readAsDataURL(file);
+  });
+}
+
+async function send(){
+  const text=document.getElementById("text");
+  const img=document.getElementById("img");
+
+  if(!text.value.trim() && !img.files[0]) return;
+
+  let imgData=null;
+  if(img.files[0]){
+    imgData = await toBase64(img.files[0]);
+  }
+
+  history.push({
+    role:"user",
+    text:text.value,
+    img:imgData
+  });
+  render();
+
+  const prompt = `
+Kamu adalah AI bernama ZeroAI.
+
+ATURAN WAJIB:
+- Jika ditanya "siapa namamu", jawab: "Namaku ZeroAI."
+- Jika ditanya "siapa pembuatmu", jawab: "Aku dibuat oleh Aldric Adelard Saputra."
+- Jangan menyebut nama lain selain ZeroAI dan Aldric Adelard Saputra.
+- Gunakan bahasa Indonesia santai, sopan, dan jelas.
+
+User: ${text.value || "(user mengirim gambar)"}
+  `;
+
+  text.value="";
+  img.value="";
+
+  const aiMsg={role:"ai",text:"ZeroAI sedang berpikir..."};
+  history.push(aiMsg);
+  render();
+
+  try{
+    const res = await puter.ai.chat(prompt);
+    aiMsg.text = res;
+  }catch(e){
+    aiMsg.text = "❌ ERROR: ZeroAI gagal merespon";
+  }
+
+  localStorage.setItem("zeroai_history",JSON.stringify(history));
+  render();
+}
+</script>
+
+</body>
+</html>
