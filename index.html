@@ -18,7 +18,7 @@ body{
   padding:15px;
 }
 #chat{
-  height:65vh;
+  height:60vh;
   overflow-y:auto;
   border:1px solid #1e293b;
   padding:10px;
@@ -61,6 +61,12 @@ button{
   border-radius:10px;
   background:#22c55e;
   font-weight:bold;
+  cursor:pointer;
+}
+#btn-clear{
+  background:#ef4444;
+  margin-top:10px;
+  width:100%;
 }
 .logo{
   width:180px;
@@ -83,6 +89,9 @@ button{
     <input type="file" id="img" accept="image/*">
     <button onclick="send()">Kirim</button>
   </div>
+
+  <!-- Tombol Hapus Chat -->
+  <button id="btn-clear" onclick="clearChat()">Hapus Chat</button>
 </div>
 
 <script>
@@ -163,6 +172,15 @@ User: ${text.value || "(user mengirim gambar)"}
 
   localStorage.setItem("zeroai_history",JSON.stringify(history));
   render();
+}
+
+// Fungsi Hapus Chat
+function clearChat(){
+  if(confirm("Apakah kamu yakin ingin menghapus seluruh chat?")){
+    history = [];
+    localStorage.removeItem("zeroai_history");
+    render();
+  }
 }
 </script>
 
