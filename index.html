@@ -5,25 +5,103 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>ZeroAI</title>
 <script src="https://js.puter.com/v2/"></script>
+
 <style>
-  * { box-sizing: border-box; margin:0; padding:0; }
-  html, body { height:100%; width:100%; overflow:hidden; font-family:system-ui; background:#020617; color:white; }
-  #app { display:flex; flex-direction:column; height:100%; max-width:600px; margin:0 auto; padding:10px; }
-  .logo { width:150px; display:block; margin:0 auto 10px auto; }
-  #chat { flex:1; overflow-y:auto; border:1px solid #1e293b; border-radius:12px; padding:10px; margin-bottom:10px; }
-  .msg { margin-bottom:10px; padding:8px 12px; border-radius:10px; white-space:pre-wrap; word-wrap:break-word; }
-  .user { background:#2563eb; text-align:right; align-self:flex-end; color:white; }
-  .ai { background:#020617; border:1px solid #334155; align-self:flex-start; }
-  #input { display:flex; gap:5px; }
-  textarea { flex:1; resize:none; padding:10px; border-radius:10px; border:none; font-size:16px; }
-  button { padding:10px 15px; border:none; border-radius:10px; background:#22c55e; font-weight:bold; cursor:pointer; color:white; }
-  #btn-clear { background:#ef4444; margin-top:5px; width:100%; }
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{
+  height:100%;
+  background:#020617;
+  color:white;
+  font-family:system-ui;
+  overflow:hidden;
+}
+#app{
+  display:flex;
+  flex-direction:column;
+  height:100%;
+  max-width:600px;
+  margin:auto;
+  padding:10px;
+}
+.logo{
+  width:140px;
+  margin:0 auto 10px;
+}
+#chat{
+  flex:1;
+  overflow-y:auto;
+  border:1px solid #1e293b;
+  border-radius:12px;
+  padding:10px;
+  margin-bottom:10px;
+}
+.msg{
+  margin-bottom:10px;
+  padding:8px 12px;
+  border-radius:10px;
+  white-space:pre-wrap;
+  word-break:break-word;
+  max-width:85%;
+}
+.user{
+  background:#2563eb;
+  align-self:flex-end;
+}
+.ai{
+  background:#020617;
+  border:1px solid #334155;
+  align-self:flex-start;
+}
+
+/* ===== LOADING SPINNER ===== */
+.loading{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.spinner{
+  width:14px;
+  height:14px;
+  border:2px solid #334155;
+  border-top-color:#22c55e;
+  border-radius:50%;
+  animation:spin .8s linear infinite;
+}
+@keyframes spin{
+  to{transform:rotate(360deg)}
+}
+
+/* ===== INPUT ===== */
+#input{
+  display:flex;
+  gap:5px;
+}
+textarea{
+  flex:1;
+  resize:none;
+  padding:10px;
+  border-radius:10px;
+  border:none;
+  font-size:16px;
+}
+button{
+  padding:10px 15px;
+  border:none;
+  border-radius:10px;
+  background:#22c55e;
+  color:white;
+  font-weight:bold;
+}
+#btn-clear{
+  background:#ef4444;
+  margin-top:5px;
+}
 </style>
 </head>
-<body>
 
+<body>
 <div id="app">
-  <img src="https://i.ibb.co.com/rKYv9K44/20251221-165128.jpg" alt="ZeroAI Logo" class="logo">
+  <img src="https://i.ibb.co.com/rKYv9K44/20251221-165128.jpg" class="logo">
   <div id="chat"></div>
 
   <div id="input">
@@ -34,63 +112,100 @@
 </div>
 
 <script>
-const chat=document.getElementById("chat");
-let history=JSON.parse(localStorage.getItem("zeroai_history"))||[];
+const chat = document.getElementById("chat");
+
+/* ===== LOAD HISTORY + FIX LOADING ===== */
+let history = (JSON.parse(localStorage.getItem("zeroai_history")) || [])
+  .map(m => ({ ...m, loading:false }));
 
 function render(){
   chat.innerHTML="";
   history.forEach(m=>{
+    if(!m.text && !m.loading) return; // skip bubble kosong
+
     const div=document.createElement("div");
     div.className="msg "+m.role;
-    if(m.text) div.textContent=m.text;
+
+    if(m.loading){
+      div.classList.add("loading");
+      div.innerHTML=`
+        <span>ZeroAI sedang berpikir</span>
+        <div class="spinner"></div>
+      `;
+    }else{
+      div.textContent=m.text;
+    }
     chat.appendChild(div);
   });
   chat.scrollTop=chat.scrollHeight;
 }
 render();
 
-async function send(){
-  const text=document.getElementById("text");
-  if(!text.value.trim()) return;
+/* ===== TYPE EFFECT ===== */
+function typeEffect(msgObj,text){
+  let i=0;
+  msgObj.text="";
+  const timer=setInterval(()=>{
+    msgObj.text+=text.charAt(i);
+    render();
+    i++;
+    if(i>=text.length){
+      clearInterval(timer);
+      localStorage.setItem("zeroai_history",JSON.stringify(history));
+    }
+  },20);
+}
 
-  history.push({role:"user", text:text.value});
+/* ===== SEND MESSAGE ===== */
+async function send(){
+  const input=document.getElementById("text");
+  if(!input.value.trim()) return;
+
+  history.push({role:"user",text:input.value});
   render();
 
-  const prompt=`Kamu adalah AI bernama ZeroAI.
-ATURAN WAJIB:
+  const prompt=`
+Kamu adalah AI bernama ZeroAI.
+ATURAN:
 - Jika ditanya "siapa namamu", jawab: "Namaku ZeroAI."
 - Jika ditanya "siapa pembuatmu", jawab: "Aku dibuat oleh Aldric Adelard Saputra."
-- Jangan menyebut nama lain selain ZeroAI dan Aldric Adelard Saputra.
-- Gunakan bahasa Indonesia santai, sopan, dan jelas.
+- Gunakan bahasa santai Indonesia.
 
-User: ${text.value}`;
+User: ${input.value}
+`;
 
-  text.value="";
+  input.value="";
 
-  const aiMsg={role:"ai", text:"ZeroAI sedang berpikir..."};
+  const aiMsg={role:"ai",text:"",loading:true};
   history.push(aiMsg);
   render();
 
   try{
     const res=await puter.ai.chat(prompt);
-    aiMsg.text=res;
-  }catch(e){
-    aiMsg.text="❌ ERROR: ZeroAI gagal merespon";
-  }
+    const answer=
+      typeof res==="string"
+      ? res
+      : res?.message?.content || "⚠️ ZeroAI tidak memberi jawaban";
 
-  localStorage.setItem("zeroai_history",JSON.stringify(history));
-  render();
+    aiMsg.loading=false;
+    typeEffect(aiMsg,answer);
+
+  }catch(e){
+    aiMsg.loading=false;
+    aiMsg.text="❌ ERROR: ZeroAI gagal merespon";
+    render();
+    localStorage.setItem("zeroai_history",JSON.stringify(history));
+  }
 }
 
+/* ===== CLEAR CHAT ===== */
 function clearChat(){
-  if(confirm("Apakah kamu yakin ingin menghapus seluruh chat?")){
+  if(confirm("Hapus semua chat?")){
     history=[];
     localStorage.removeItem("zeroai_history");
     render();
   }
 }
 </script>
-
 </body>
 </html>
-
