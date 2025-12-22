@@ -53,7 +53,7 @@ html,body{
   align-self:flex-start;
 }
 
-/* ===== LOADING SPINNER ===== */
+/* ===== LOADING ===== */
 .loading{
   display:flex;
   align-items:center;
@@ -67,8 +67,30 @@ html,body{
   border-radius:50%;
   animation:spin .8s linear infinite;
 }
-@keyframes spin{
-  to{transform:rotate(360deg)}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ===== CODE BOX ===== */
+.code-box{
+  position:relative;
+  background:#020617;
+  border:1px solid #334155;
+  border-radius:10px;
+  padding:12px;
+  margin:8px 0;
+  overflow-x:auto;
+  font-family:monospace;
+  font-size:14px;
+}
+.copy-btn{
+  position:absolute;
+  top:6px;
+  right:6px;
+  background:#22c55e;
+  color:white;
+  border:none;
+  border-radius:6px;
+  padding:4px 8px;
+  font-size:12px;
 }
 
 /* ===== INPUT ===== */
@@ -114,26 +136,49 @@ button{
 <script>
 const chat = document.getElementById("chat");
 
-/* ===== LOAD HISTORY + FIX LOADING ===== */
+/* ===== LOAD HISTORY ===== */
 let history = (JSON.parse(localStorage.getItem("zeroai_history")) || [])
-  .map(m => ({ ...m, loading:false }));
+  .map(m => ({...m, loading:false}));
 
 function render(){
   chat.innerHTML="";
   history.forEach(m=>{
-    if(!m.text && !m.loading) return; // skip bubble kosong
+    if(!m.text && !m.loading) return;
 
     const div=document.createElement("div");
     div.className="msg "+m.role;
 
     if(m.loading){
       div.classList.add("loading");
-      div.innerHTML=`
-        <span>ZeroAI sedang berpikir</span>
-        <div class="spinner"></div>
-      `;
+      div.innerHTML=`<span>ZeroAI sedang berpikir</span><div class="spinner"></div>`;
     }else{
-      div.textContent=m.text;
+      // ==== SPLIT TEXT & CODE ====
+      if(m.text.includes("```")){
+        const parts = m.text.split("```");
+        div.innerHTML="";
+
+        parts.forEach((part,i)=>{
+          // CODE
+          if(i % 2 === 1){
+            let code = part.replace(/^[a-zA-Z]+\n/, "");
+            const box=document.createElement("div");
+            box.className="code-box";
+            box.innerHTML=`
+              <button class="copy-btn" onclick="copyCode(this)">Salin</button>
+              <pre>${code.replace(/</g,"&lt;")}</pre>
+            `;
+            div.appendChild(box);
+          }
+          // TEXT
+          else if(part.trim()){
+            const text=document.createElement("div");
+            text.textContent=part.trim();
+            div.appendChild(text);
+          }
+        });
+      }else{
+        div.textContent=m.text;
+      }
     }
     chat.appendChild(div);
   });
@@ -141,12 +186,20 @@ function render(){
 }
 render();
 
+/* ===== COPY CODE ===== */
+function copyCode(btn){
+  const code = btn.nextElementSibling.innerText;
+  navigator.clipboard.writeText(code);
+  btn.textContent="Tersalin!";
+  setTimeout(()=>btn.textContent="Salin",1500);
+}
+
 /* ===== TYPE EFFECT ===== */
-function typeEffect(msgObj,text){
+function typeEffect(obj,text){
   let i=0;
-  msgObj.text="";
+  obj.text="";
   const timer=setInterval(()=>{
-    msgObj.text+=text.charAt(i);
+    obj.text+=text.charAt(i);
     render();
     i++;
     if(i>=text.length){
@@ -156,7 +209,7 @@ function typeEffect(msgObj,text){
   },20);
 }
 
-/* ===== SEND MESSAGE ===== */
+/* ===== SEND ===== */
 async function send(){
   const input=document.getElementById("text");
   if(!input.value.trim()) return;
@@ -175,30 +228,23 @@ User: ${input.value}
 `;
 
   input.value="";
-
   const aiMsg={role:"ai",text:"",loading:true};
   history.push(aiMsg);
   render();
 
   try{
     const res=await puter.ai.chat(prompt);
-    const answer=
-      typeof res==="string"
-      ? res
-      : res?.message?.content || "⚠️ ZeroAI tidak memberi jawaban";
-
+    const answer=typeof res==="string"?res:res?.message?.content||"⚠️ Tidak ada jawaban";
     aiMsg.loading=false;
     typeEffect(aiMsg,answer);
-
   }catch(e){
     aiMsg.loading=false;
     aiMsg.text="❌ ERROR: ZeroAI gagal merespon";
     render();
-    localStorage.setItem("zeroai_history",JSON.stringify(history));
   }
 }
 
-/* ===== CLEAR CHAT ===== */
+/* ===== CLEAR ===== */
 function clearChat(){
   if(confirm("Hapus semua chat?")){
     history=[];
